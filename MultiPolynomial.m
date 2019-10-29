@@ -19,7 +19,7 @@ classdef MultiPolynomial
             if nargin > 4
                 obj.x0 = x0;
             else
-                obj.x0 = zeros(1, varNumber);
+                obj.x0 = zeros(1, obj.dimX);
             end
         end
         
@@ -42,28 +42,44 @@ classdef MultiPolynomial
             str = "";
             strKeys = self.coeffs.keys;
             for i = 1:length(strKeys)
-                term = num2str(self.coeffs(strKeys{i}));
                 quantitys = str2num(strKeys{i});
-                for j = 1:self.dimX
-                    q = quantitys(j);
-                    if q ~= 0
-                        term = strcat(term, "(x", num2str(j));
-                        if self.x0(j) < 0
-                            term = strcat(term, " + ", num2str(abs(self.x0(j))), ")");
-                        else
-                            term = strcat(term, " - ", num2str(self.x0(j)), ")");
-                        end
-                        if q > 1
-                            term = strcat(term, "^", num2str(q));
+                term = "";
+                if quantitys*ones(self.dimX, 1) > 0
+                    if self.coeffs(strKeys{i}) ~= 1
+                        term = num2str(self.coeffs(strKeys{i}));
+                    end
+                    for j = 1:self.dimX
+                        q = quantitys(j);
+                        if q ~= 0
+                            if self.x0(j) ~= 0
+                                term = strcat(term, "(x", num2str(j));
+                                if self.x0(j) < 0
+                                    term = strcat(term, " + ", num2str(abs(self.x0(j))), ")");
+                                else
+                                    term = strcat(term, " - ", num2str(self.x0(j)), ")");
+                                end
+                            else
+                                term = strcat(term, "x", num2str(j));
+                            end
+                            if q > 1
+                                term = strcat(term, "^", num2str(q));
+                            end
                         end
                     end
+                else
+                    term = strcat(term, num2str(self.coeffs(strKeys{i})));
                 end
+                
                 if strlength(str) > 0
                     str = strcat(str, " + ", term);
                 else
                     str = term;
                 end
             end
+        end
+        
+        function disp(obj)
+            disp(obj.toString());
         end
         
     end
