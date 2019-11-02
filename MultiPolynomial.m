@@ -4,6 +4,7 @@ classdef MultiPolynomial
     properties (Access = private)
         dimX;
         coeffs;
+        len
         x0;
     end
     
@@ -17,14 +18,16 @@ classdef MultiPolynomial
             if isa(positions, 'containers.Map')
                 obj.dimX = uint32(values);
                 obj.coeffs = positions;
+                obj.len = length(positions.keys());
             else
                 obj.dimX = uint32(length(positions{1}));
+                obj.len = length(positions);
                 obj.coeffs = containers.Map(conv2str(positions), values);
             end
             if nargin > 2
                 obj.x0 = x0;
             else
-                obj.x0 = zeros(1, obj.dimX);
+                obj.x0 = zeros(obj.dimX, 1);
             end
         end
         
@@ -34,7 +37,7 @@ classdef MultiPolynomial
             strKeys = self.coeffs.keys;
             for i = 1:length(strKeys)
                 term = self.coeffs(strKeys{i});
-                quantitys = str2num(strKeys{i});
+                quantitys = str2num(strKeys{i}); %#ok<ST2NM>
                 for j = 1:self.dimX
                     term = term*(x(j) - self.x0(j))^(quantitys(j));
                 end
@@ -44,10 +47,11 @@ classdef MultiPolynomial
         
         function str = toString(self)
             %   —троковое представление полинома
+            % переделать
             str = "";
             strKeys = self.coeffs.keys;
             for i = 1:length(strKeys)
-                quantitys = str2num(strKeys{i});
+                quantitys = str2num(strKeys{i}); %#ok<ST2NM>
                 term = "";
                 if quantitys*ones(self.dimX, 1) > 0
                     if self.coeffs(strKeys{i}) ~= 1
@@ -87,7 +91,7 @@ classdef MultiPolynomial
             disp(obj.toString());
         end
         
-        function value = plus(obj1, obj2)
+        function p = plus(obj1, obj2)
             if ~isa(obj1, 'MultiPolynomial') || ~isa(obj2, 'MultiPolynomial')
                 error("Arguments must be object 'MultiPolynomial'");
             end
@@ -98,7 +102,7 @@ classdef MultiPolynomial
                 error("Start points must be concide");
             end
             
-            coeffs1 = containers.Map(obj1.getCoeffs().keys, obj1.getCoeffs().values);
+            coeffs1 = copyMap(obj1.getCoeffs);
             coeffs2 = obj2.getCoeffs();
             keys2 = coeffs2.keys();
             
@@ -111,17 +115,17 @@ classdef MultiPolynomial
                 end
             end
             
-            value = MultiPolynomial(coeffs1, obj1.getDimX(), obj1.getX0());
+            p = MultiPolynomial(coeffs1, obj1.getDimX(), obj1.getX0());
         end
         
-        function value = minus(obj1, obj2)
+        function p = minus(obj1, obj2)
             if ~isa(obj1, 'MultiPolynomial') || ~isa(obj2, 'MultiPolynomial')
                 error("Arguments must be object 'MultiPolynomial'");
             end
             if obj1.getDimX() ~= obj2.getDimX()
                 error("Dimensions must be concide");
             end 
-            if obj1.getX0() ~= obj2.getX0()
+            if ((obj1.getX0() - obj2.getX0()).'*(obj1.getX0() - obj2.getX0()) ~= 0)
                 error("Start points must be concide");
             end
             
@@ -143,7 +147,7 @@ classdef MultiPolynomial
                 end
             end
             
-            value = MultiPolynomial(coeffs1, obj1.getDimX(), obj1.getX0());
+            p = MultiPolynomial(coeffs1, obj1.getDimX(), obj1.getX0());
         end
         
         function dimX = getDimX(self)
@@ -156,6 +160,51 @@ classdef MultiPolynomial
         
         function x0 = getX0(self)
             x0 = self.x0;
+        end
+        
+        function len = getLen(self)
+            len = self.len;
+        end
+        
+        function p = mtimes(obj1, obj2)
+            if isa(obj1, 'MultiPolynomial') && isnumeric(obj2) && isscalar(obj2)
+                temp = obj2;
+                obj2 = obj1;
+                obj1 = temp;
+            end
+            if isa(obj2, 'MultiPolynomial') && isnumeric(obj1) && isscalar(obj1)
+                coef = copyMap(obj2.getCoeffs());
+                keys = coef.keys();
+                for k = keys
+                    coef(k{1}) = coef(k{1})*obj1;
+                end
+                p = MultiPolynomial(coef, obj2.getDimX(), obj2.getX0());
+            elseif isa(obj1, 'MultiPolynomial') && isa(obj2, 'MultiPolynomial') && (obj1.getDimX() == obj2.getDimX()) && ((obj1.getX0() - obj2.getX0()).'*(obj1.getX0() - obj2.getX0()) == 0)
+                coef = containers.Map;
+                coeffs1 = obj1.getCoeffs();
+                coeffs2 = obj2.getCoeffs();
+                strKeys1 = coeffs1.keys();
+                strKeys2 = coeffs2.keys();
+                for i = 1:length(strKeys1)
+                    key1 = strKeys1{i};
+                    coef1 = coeffs1(key1);
+                    numDegree1 = str2num(key1); %#ok<ST2NM>
+                    for j = 1:length(strKeys2)
+                        key2 = strKeys2{j};
+                        coef2 = coeffs2(key2);
+                        numDegree2 = str2num(key2); %#ok<ST2NM>
+                        newKey = num2str(numDegree1 + numDegree2);
+                        sum = 0;
+                        if coef.isKey(newKey)
+                            sum = coef(newKey);
+                        end
+                        coef(newKey) = coef1*coef2 + sum;
+                    end
+                end
+                p = MultiPolynomial(coef, obj1.getDimX(), obj1.getX0);
+            else
+                error('Multipliers must be MultiPolynomial objects whis agree dimX and x0, or MultiPolynomial object and scalar number')
+            end
         end
         
     end
