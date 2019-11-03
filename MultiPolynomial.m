@@ -4,8 +4,9 @@ classdef MultiPolynomial
     properties (Access = private)
         dimX;
         coeffs;
-        len
+        len;
         x0;
+        const = 0;
     end
     
     methods
@@ -33,7 +34,7 @@ classdef MultiPolynomial
         
         function value = value(self, x)
             %   «начение полинома в точке x
-            value = 0;
+            value = self.const;
             strKeys = self.coeffs.keys;
             for i = 1:length(strKeys)
                 term = self.coeffs(strKeys{i});
@@ -47,7 +48,7 @@ classdef MultiPolynomial
         
         function str = toString(self)
             %   —троковое представление полинома
-            % переделать
+            % переделать, + add const
             str = "";
             strKeys = self.coeffs.keys;
             for i = 1:length(strKeys)
@@ -166,6 +167,10 @@ classdef MultiPolynomial
             len = self.len;
         end
         
+        function self = setConst(self, c)
+            self.const = c;
+        end
+        
         function p = mtimes(obj1, obj2)
             if isa(obj1, 'MultiPolynomial') && isnumeric(obj2) && isscalar(obj2)
                 temp = obj2;
@@ -207,6 +212,39 @@ classdef MultiPolynomial
             end
         end
         
+        function p = diff(self, x_n)
+            if ~isnumeric(x_n) || ~isscalar(x_n) || mod(x_n, 1) > 0 || x_n > self.dimX || x_n < 1
+                error('Argument must be number of component X');
+            end
+            x_n = uint32(x_n);
+            newMap = containers.Map;
+            keys = self.coeffs.keys();
+            numDegree = conv2num(keys);
+            for i = 1:length(numDegree)
+                degree = numDegree{i}(x_n) - 1;
+                if degree > -1
+                    numDegree{i}(x_n) = degree;
+                    newMap(num2str(numDegree{i})) = self.coeffs(keys{i})*(degree + 1);
+                end
+            end
+            p = MultiPolynomial(newMap, self.dimX, self.x0);
+        end
+        
+        function p = integrate(self, x_n)
+            if ~isnumeric(x_n) || ~isscalar(x_n) || mod(x_n, 1) > 0 || x_n > self.dimX || x_n < 1
+                error('Argument must be number of component X');
+            end
+            x_n = uint32(x_n);
+            newMap = containers.Map;
+            keys = self.coeffs.keys();
+            numDegree = conv2num(keys);
+            for i = 1:length(numDegree)
+                degree = numDegree{i}(x_n) + 1;
+                numDegree{i}(x_n) = degree;
+                newMap(num2str(numDegree{i})) = self.coeffs(keys{i})/degree;
+            end
+            p = MultiPolynomial(newMap, self.dimX, self.x0);
+        end
     end
 end
 
